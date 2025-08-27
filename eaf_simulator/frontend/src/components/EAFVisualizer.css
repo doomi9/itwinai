@@ -1,0 +1,311 @@
+/* EAF Visualizer Component Styles - Holographic Space Display */
+.eaf-visualizer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    background: radial-gradient(ellipse at center, #000011 0%, #000000 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+}
+
+/* Animated Starfield Background */
+.eaf-visualizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(1px 1px at 25px 35px, #ffffff, transparent),
+        radial-gradient(1px 1px at 45px 75px, #ffffff, transparent),
+        radial-gradient(1px 1px at 95px 45px, #ffffff, transparent),
+        radial-gradient(1px 1px at 135px 85px, #ffffff, transparent),
+        radial-gradient(1px 1px at 165px 35px, #ffffff, transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: twinkle 25s linear infinite;
+    z-index: 1;
+    opacity: 0.3;
+}
+
+@keyframes twinkle {
+    0% {
+        transform: translateY(0px);
+    }
+
+    100% {
+        transform: translateY(-100px);
+    }
+}
+
+.visualizer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 20;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.temperature-display {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(25px);
+    border-radius: 15px;
+    padding: 20px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    align-self: flex-start;
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.temperature-display::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 3s ease-in-out infinite;
+}
+
+.temp-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+    font-family: 'Orbitron', 'Courier New', monospace;
+}
+
+.temp-item:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.temp-label {
+    color: rgba(224, 232, 255, 0.8);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.temp-value {
+    color: #00d4ff;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.controls-info {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(25px);
+    border-radius: 15px;
+    padding: 15px 20px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    align-self: center;
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.controls-info::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 4s ease-in-out infinite;
+}
+
+.controls-info p {
+    margin: 0;
+    color: rgba(224, 232, 255, 0.7);
+    font-size: 12px;
+    text-align: center;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Three.js Canvas Styling */
+.eaf-visualizer canvas {
+    border-radius: 20px;
+    display: block;
+    position: relative;
+    z-index: 10;
+}
+
+/* Loading State - Holographic Loading */
+.visualizer-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: rgba(0, 212, 255, 0.8);
+    font-size: 18px;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.visualizer-loading::after {
+    content: '';
+    width: 25px;
+    height: 25px;
+    border: 3px solid rgba(0, 212, 255, 0.2);
+    border-top: 3px solid #00d4ff;
+    border-radius: 50%;
+    animation: spin 1.5s linear infinite;
+    margin-left: 15px;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error State - Alert Display */
+.visualizer-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #ff4757;
+    text-align: center;
+    padding: 30px;
+    background: rgba(255, 71, 87, 0.1);
+    border: 2px solid rgba(255, 71, 87, 0.3);
+    border-radius: 15px;
+    backdrop-filter: blur(15px);
+}
+
+.visualizer-error-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+}
+
+.visualizer-error-message {
+    font-size: 16px;
+    color: rgba(224, 232, 255, 0.9);
+    margin-bottom: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.visualizer-error-details {
+    font-size: 14px;
+    color: rgba(224, 232, 255, 0.7);
+    font-family: 'Orbitron', 'Courier New', monospace;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 71, 87, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .eaf-visualizer {
+        min-height: 400px;
+    }
+
+    .visualizer-overlay {
+        padding: 20px;
+    }
+
+    .temperature-display {
+        padding: 15px;
+    }
+
+    .temp-item {
+        margin-bottom: 10px;
+    }
+
+    .temp-label {
+        font-size: 11px;
+    }
+
+    .temp-value {
+        font-size: 14px;
+    }
+
+    .controls-info {
+        padding: 12px 18px;
+    }
+
+    .controls-info p {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .eaf-visualizer {
+        min-height: 300px;
+    }
+
+    .visualizer-overlay {
+        padding: 15px;
+    }
+
+    .temperature-display {
+        padding: 12px;
+    }
+
+    .temp-item {
+        margin-bottom: 8px;
+    }
+
+    .temp-label {
+        font-size: 10px;
+    }
+
+    .temp-value {
+        font-size: 12px;
+    }
+
+    .controls-info {
+        padding: 10px 15px;
+    }
+
+    .controls-info p {
+        font-size: 10px;
+    }
+}
+
+/* Animations */
+@keyframes scan {
+
+    0%,
+    100% {
+        transform: translateX(-100%);
+    }
+
+    50% {
+        transform: translateX(100%);
+    }
+}

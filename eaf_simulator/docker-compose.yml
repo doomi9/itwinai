@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # EAF Simulator Backend
+  eaf-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - ITWINAI_LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - eaf-network
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+      - mlflow
+
+  # EAF Simulator Frontend
+  eaf-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    networks:
+      - eaf-network
+    restart: unless-stopped
+    depends_on:
+      - eaf-backend
+
+  # InfluxDB for time-series data
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=eaf-simulator
+      - DOCKER_INFLUXDB_INIT_BUCKET=eaf-data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin-token-123
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - eaf-network
+    restart: unless-stopped
+
+  # MLflow for experiment tracking
+  mlflow:
+    image: python:3.10-slim
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+    volumes:
+      - ./mlflow:/mlflow
+      - ./mlflow-artifacts:/mlflow/artifacts
+    working_dir: /mlflow
+    command: >
+      bash -c "pip install mlflow && 
+               mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts"
+    networks:
+      - eaf-network
+    restart: unless-stopped
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - eaf-network
+    restart: unless-stopped
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - eaf-network
+    restart: unless-stopped
+    depends_on:
+      - eaf-backend
+      - eaf-frontend
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  redis-data:
+
+networks:
+  eaf-network:
+    driver: bridge

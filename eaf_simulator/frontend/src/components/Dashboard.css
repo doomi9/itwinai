@@ -1,0 +1,358 @@
+/* Dashboard Component Styles - Spacecraft Viewport Theme */
+.dashboard {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at center, #0a0a2a 0%, #000011 50%, #000000 100%);
+    color: #e0e8ff;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Header Styles - Command Bridge Aesthetic */
+.dashboard-header {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(25px);
+    padding: 25px;
+    border-bottom: 2px solid rgba(0, 212, 255, 0.4);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, #00ffff, #00d4ff, transparent);
+    animation: scan 4s ease-in-out infinite;
+}
+
+.dashboard-header h1 {
+    margin: 0 0 20px 0;
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, #00d4ff, #00ffff, #74b9ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    letter-spacing: 3px;
+    animation: glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.5));
+    }
+
+    to {
+        filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.8));
+    }
+}
+
+.header-info {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.api-status,
+.simulation-status {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 12px 24px;
+    border-radius: 25px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(15px);
+}
+
+.api-status::before,
+.simulation-status::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
+    transition: left 0.6s;
+}
+
+.api-status:hover::before,
+.simulation-status:hover::before {
+    left: 100%;
+}
+
+.api-status {
+    color: #00d4ff;
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.simulation-status {
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.6);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+/* Content Layout - Holographic Display Panels */
+.dashboard-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 25px;
+}
+
+.main-section {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 25px;
+    margin-bottom: 35px;
+}
+
+.visualization-container {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 20px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    overflow: hidden;
+    min-height: 600px;
+    position: relative;
+    backdrop-filter: blur(20px);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(0, 212, 255, 0.2);
+}
+
+.visualization-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 3s ease-in-out infinite;
+}
+
+.control-section {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(25px);
+    border-radius: 20px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    padding: 25px;
+    max-height: 600px;
+    overflow-y: auto;
+    position: relative;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(0, 212, 255, 0.2);
+}
+
+.control-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 4s ease-in-out infinite;
+}
+
+.charts-section {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(25px);
+    border-radius: 20px;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+    padding: 25px;
+    margin-top: 25px;
+    position: relative;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(0, 212, 255, 0.2);
+}
+
+.charts-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 5s ease-in-out infinite;
+}
+
+/* Error Banner - Alert System */
+.error-banner {
+    background: linear-gradient(45deg, #ff4757, #ff3742);
+    color: white;
+    padding: 18px 25px;
+    margin: 25px;
+    border-radius: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 8px 25px rgba(255, 71, 87, 0.4);
+    animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(15px);
+}
+
+.error-message {
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+}
+
+.error-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 0;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.error-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+/* Footer - Status Display */
+.dashboard-footer {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(25px);
+    padding: 25px;
+    text-align: center;
+    border-top: 2px solid rgba(0, 212, 255, 0.4);
+    margin-top: 50px;
+    position: relative;
+}
+
+.dashboard-footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    animation: scan 6s ease-in-out infinite;
+}
+
+.dashboard-footer p {
+    margin: 0;
+    color: rgba(224, 232, 255, 0.8);
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .main-section {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .visualization-container {
+        min-height: 500px;
+    }
+
+    .control-section {
+        max-height: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header h1 {
+        font-size: 2.2rem;
+        letter-spacing: 2px;
+    }
+
+    .header-info {
+        gap: 20px;
+    }
+
+    .dashboard-content {
+        padding: 20px;
+    }
+
+    .main-section {
+        gap: 20px;
+    }
+
+    .visualization-container {
+        min-height: 400px;
+    }
+
+    .control-section,
+    .charts-section {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-header h1 {
+        font-size: 1.8rem;
+        letter-spacing: 1px;
+    }
+
+    .header-info {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .dashboard-content {
+        padding: 15px;
+    }
+
+    .visualization-container {
+        min-height: 300px;
+    }
+
+    .control-section,
+    .charts-section {
+        padding: 15px;
+    }
+}
+
+/* Animations */
+@keyframes slideDown {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes scan {
+
+    0%,
+    100% {
+        transform: translateX(-100%);
+    }
+
+    50% {
+        transform: translateX(100%);
+    }
+}
