@@ -233,7 +233,7 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
                 child.scale.set(scale, scale, scale);
                 
                 // Change color based on power
-                const power = simulationData.current_power || 0;
+                const power = simulationData?.current_power || 0;
                 const intensity = Math.min(1, power / 50000); // Normalize power
                 child.material.color.setHSL(0.6, 1, 0.5 + intensity * 0.5);
             }
@@ -243,7 +243,7 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
         scene.children.forEach(child => {
             if (child.geometry && child.geometry.type === 'CylinderGeometry' && 
                 child.material.color.getHex() === 0xFF4500) {
-                const temp = simulationData.zone_temperatures?.liquid_metal || 0;
+                const temp = simulationData?.zone_temperatures?.liquid_metal || 0;
                 const normalizedTemp = Math.min(1, temp / 2000);
                 const hue = 0.1 + normalizedTemp * 0.1; // Red to orange to yellow
                 const saturation = 1;
@@ -254,7 +254,14 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
     };
 
     const getCurrentMetrics = () => {
-        if (!simulationData) return {};
+        if (!simulationData) return {
+            metalTemp: 0,
+            slagTemp: 0,
+            power: 0,
+            efficiency: 0,
+            arcLength: 0,
+            electrodePosition: 0
+        };
         
         return {
             metalTemp: simulationData.zone_temperatures?.liquid_metal || 0,
