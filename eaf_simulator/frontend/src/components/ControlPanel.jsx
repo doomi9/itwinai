@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import './ControlPanel.css';
 
-const ControlPanel = ({
-    isRunning,
-    onStartSimulation,
-    onStopSimulation,
+const ControlPanel = ({ 
+    isRunning, 
+    onStartSimulation, 
+    onStopSimulation, 
     onUpdateParameters,
     onAddMaterial,
-    simulationData
+    simulationData 
 }) => {
     const [simulationParams, setSimulationParams] = useState({
         furnace_capacity: 150.0,
@@ -29,11 +29,25 @@ const ControlPanel = ({
         dolomite_addition_rate: 0.03
     });
 
-    const [materialData, setMaterialData] = useState({
-        material_name: 'steel_scrap',
-        amount: 100.0,
+    const [materialInput, setMaterialInput] = useState({
+        material_name: '',
+        amount: 0,
         zone: 'liquid_metal'
     });
+
+    const handleSimulationParamChange = (field, value) => {
+        setSimulationParams(prev => ({
+            ...prev,
+            [field]: parseFloat(value) || 0
+        }));
+    };
+
+    const handleOperatingParamChange = (field, value) => {
+        setOperatingParams(prev => ({
+            ...prev,
+            [field]: parseFloat(value) || 0
+        }));
+    };
 
     const handleStartSimulation = () => {
         onStartSimulation(simulationParams);
@@ -43,329 +57,272 @@ const ControlPanel = ({
         onStopSimulation();
     };
 
-    const handleParameterUpdate = () => {
+    const handleUpdateParameters = () => {
         onUpdateParameters(operatingParams);
     };
 
+    const handleMaterialInputChange = (field, value) => {
+        setMaterialInput(prev => ({
+            ...prev,
+            [field]: field === 'amount' ? parseFloat(value) || 0 : value
+        }));
+    };
+
     const handleAddMaterial = () => {
-        onAddMaterial(materialData);
+        if (materialInput.material_name && materialInput.amount > 0) {
+            onAddMaterial(materialInput);
+            setMaterialInput({
+                material_name: '',
+                amount: 0,
+                zone: 'liquid_metal'
+            });
+        }
     };
 
-    const updateSimulationParam = (key, value) => {
-        setSimulationParams(prev => ({
-            ...prev,
-            [key]: parseFloat(value)
-        }));
+    const getCurrentPower = () => {
+        if (!simulationData) return 0;
+        return (operatingParams.arc_voltage * operatingParams.arc_current * operatingParams.power_factor) / 1000;
     };
 
-    const updateOperatingParam = (key, value) => {
-        setOperatingParams(prev => ({
-            ...prev,
-            [key]: parseFloat(value)
-        }));
-    };
-
-    const updateMaterialData = (key, value) => {
-        setMaterialData(prev => ({
-            ...prev,
-            [key]: key === 'amount' ? parseFloat(value) : value
-        }));
+    const getCurrentEfficiency = () => {
+        if (!simulationData) return 0;
+        // Simplified efficiency calculation
+        const power = getCurrentPower();
+        if (power === 0) return 0;
+        return Math.min(95, Math.max(70, 85 + (power - 20) * 0.5));
     };
 
     return (
         <div className="control-panel">
-            <div className="panel-section">
-                <h3>Simulation Control</h3>
+            <h2 className="control-panel-title">Simulation Controls</h2>
 
-                <div className="control-group">
-                    <label>Furnace Capacity (tons):</label>
-                    <input
-                        type="number"
-                        value={simulationParams.furnace_capacity}
-                        onChange={(e) => updateSimulationParam('furnace_capacity', e.target.value)}
-                        min="50"
-                        max="500"
-                        step="10"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Duration (seconds):</label>
-                    <input
-                        type="number"
-                        value={simulationParams.simulation_duration}
-                        onChange={(e) => updateSimulationParam('simulation_duration', e.target.value)}
-                        min="300"
-                        max="7200"
-                        step="300"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Time Step (seconds):</label>
-                    <input
-                        type="number"
-                        value={simulationParams.time_step}
-                        onChange={(e) => updateSimulationParam('time_step', e.target.value)}
-                        min="0.1"
-                        max="10"
-                        step="0.1"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Arc Voltage (V):</label>
-                    <input
-                        type="number"
-                        value={simulationParams.arc_voltage}
-                        onChange={(e) => updateSimulationParam('arc_voltage', e.target.value)}
-                        min="200"
-                        max="800"
-                        step="25"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Arc Current (kA):</label>
-                    <input
-                        type="number"
-                        value={simulationParams.arc_current}
-                        onChange={(e) => updateSimulationParam('arc_current', e.target.value)}
-                        min="20"
-                        max="100"
-                        step="5"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Power Factor:</label>
-                    <input
-                        type="number"
-                        value={simulationParams.power_factor}
-                        onChange={(e) => updateSimulationParam('power_factor', e.target.value)}
-                        min="0.7"
-                        max="0.95"
-                        step="0.05"
-                    />
-                </div>
-
-                <div className="button-group">
-                    {!isRunning ? (
-                        <button
-                            className="start-btn"
-                            onClick={handleStartSimulation}
-                        >
-                            🚀 Start Simulation
-                        </button>
-                    ) : (
-                        <button
-                            className="stop-btn"
-                            onClick={handleStopSimulation}
-                        >
-                            ⏹️ Stop Simulation
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className="panel-section">
-                <h3>Operating Parameters</h3>
-
-                <div className="control-group">
-                    <label>Arc Voltage (V):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.arc_voltage}
-                        onChange={(e) => updateOperatingParam('arc_voltage', e.target.value)}
-                        min="200"
-                        max="800"
-                        step="25"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Arc Current (kA):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.arc_current}
-                        onChange={(e) => updateOperatingParam('arc_current', e.target.value)}
-                        min="20"
-                        max="100"
-                        step="5"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Power Factor:</label>
-                    <input
-                        type="number"
-                        value={operatingParams.power_factor}
-                        onChange={(e) => updateOperatingParam('power_factor', e.target.value)}
-                        min="0.7"
-                        max="0.95"
-                        step="0.05"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Electrode Position (m):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.electrode_position}
-                        onChange={(e) => updateOperatingParam('electrode_position', e.target.value)}
-                        min="1.0"
-                        max="3.0"
-                        step="0.1"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Oxygen Flow (m³/s):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.oxygen_flow_rate}
-                        onChange={(e) => updateOperatingParam('oxygen_flow_rate', e.target.value)}
-                        min="0.0"
-                        max="2.0"
-                        step="0.1"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Carbon Injection (kg/s):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.carbon_injection_rate}
-                        onChange={(e) => updateOperatingParam('carbon_injection_rate', e.target.value)}
-                        min="0.0"
-                        max="0.5"
-                        step="0.01"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Lime Addition (kg/s):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.lime_addition_rate}
-                        onChange={(e) => updateOperatingParam('lime_addition_rate', e.target.value)}
-                        min="0.0"
-                        max="0.2"
-                        step="0.01"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Dolomite Addition (kg/s):</label>
-                    <input
-                        type="number"
-                        value={operatingParams.dolomite_addition_rate}
-                        onChange={(e) => updateOperatingParam('dolomite_addition_rate', e.target.value)}
-                        min="0.0"
-                        max="0.1"
-                        step="0.01"
-                    />
-                </div>
-
-                <div className="button-group">
-                    <button
-                        className="update-btn"
-                        onClick={handleParameterUpdate}
-                        disabled={!isRunning}
-                    >
-                        🔄 Update Parameters
-                    </button>
-                </div>
-            </div>
-
-            <div className="panel-section">
-                <h3>Material Management</h3>
-
-                <div className="control-group">
-                    <label>Material:</label>
-                    <select
-                        value={materialData.material_name}
-                        onChange={(e) => updateMaterialData('material_name', e.target.value)}
-                    >
-                        <option value="steel_scrap">Steel Scrap</option>
-                        <option value="dri">DRI (Direct Reduced Iron)</option>
-                        <option value="lime">Lime (CaO)</option>
-                        <option value="dolomite">Dolomite</option>
-                        <option value="carbon">Carbon</option>
-                        <option value="ferromanganese">Ferromanganese</option>
-                    </select>
-                </div>
-
-                <div className="control-group">
-                    <label>Amount (kg):</label>
-                    <input
-                        type="number"
-                        value={materialData.amount}
-                        onChange={(e) => updateMaterialData('amount', e.target.value)}
-                        min="1"
-                        max="10000"
-                        step="1"
-                    />
-                </div>
-
-                <div className="control-group">
-                    <label>Zone:</label>
-                    <select
-                        value={materialData.zone}
-                        onChange={(e) => updateMaterialData('zone', e.target.value)}
-                    >
-                        <option value="liquid_metal">Liquid Metal</option>
-                        <option value="slag">Slag Layer</option>
-                        <option value="arc">Arc Zone</option>
-                    </select>
-                </div>
-
-                <div className="button-group">
-                    <button
-                        className="add-material-btn"
-                        onClick={handleAddMaterial}
-                        disabled={!isRunning}
-                    >
-                        ➕ Add Material
-                    </button>
-                </div>
-            </div>
-
-            {simulationData && (
-                <div className="panel-section">
-                    <h3>Current Status</h3>
-
-                    <div className="status-grid">
-                        <div className="status-item">
-                            <span className="status-label">Metal Temp:</span>
-                            <span className="status-value">
-                                {Math.round(simulationData.zone_temperatures?.liquid_metal || 0)}°C
-                            </span>
-                        </div>
-
-                        <div className="status-item">
-                            <span className="status-label">Slag Temp:</span>
-                            <span className="status-value">
-                                {Math.round(simulationData.zone_temperatures?.slag || 0)}°C
-                            </span>
-                        </div>
-
-                        <div className="status-item">
-                            <span className="status-label">Current Power:</span>
-                            <span className="status-value">
-                                {Math.round(simulationData.current_power || 0)} kW
-                            </span>
-                        </div>
-
-                        <div className="status-item">
-                            <span className="status-label">Simulation Time:</span>
-                            <span className="status-value">
-                                {Math.round(simulationData.simulation_time || 0)}s
-                            </span>
-                        </div>
+            {/* Simulation Setup */}
+            <div className="control-section">
+                <h3 className="control-section-title">Simulation Setup</h3>
+                <div className="control-grid control-grid-3">
+                    <div className="control-input-group">
+                        <label>Furnace Capacity (tons)</label>
+                        <input
+                            type="number"
+                            value={simulationParams.furnace_capacity}
+                            onChange={(e) => handleSimulationParamChange('furnace_capacity', e.target.value)}
+                            step="0.1"
+                            min="10"
+                            max="500"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Duration (seconds)</label>
+                        <input
+                            type="number"
+                            value={simulationParams.simulation_duration}
+                            onChange={(e) => handleSimulationParamChange('simulation_duration', e.target.value)}
+                            step="1"
+                            min="60"
+                            max="7200"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Time Step (seconds)</label>
+                        <input
+                            type="number"
+                            value={simulationParams.time_step}
+                            onChange={(e) => handleSimulationParamChange('time_step', e.target.value)}
+                            step="0.1"
+                            min="0.1"
+                            max="10"
+                        />
                     </div>
                 </div>
-            )}
+            </div>
+
+            {/* Operating Parameters */}
+            <div className="control-section">
+                <h3 className="control-section-title">Operating Parameters</h3>
+                <div className="control-grid control-grid-2">
+                    <div className="control-input-group">
+                        <label>Arc Voltage (V)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.arc_voltage}
+                            onChange={(e) => handleOperatingParamChange('arc_voltage', e.target.value)}
+                            step="1"
+                            min="200"
+                            max="800"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Arc Current (kA)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.arc_current}
+                            onChange={(e) => handleOperatingParamChange('arc_current', e.target.value)}
+                            step="0.1"
+                            min="20"
+                            max="100"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Power Factor</label>
+                        <input
+                            type="number"
+                            value={operatingParams.power_factor}
+                            onChange={(e) => handleOperatingParamChange('power_factor', e.target.value)}
+                            step="0.01"
+                            min="0.5"
+                            max="1.0"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Electrode Position (m)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.electrode_position}
+                            onChange={(e) => handleOperatingParamChange('electrode_position', e.target.value)}
+                            step="0.1"
+                            min="0.5"
+                            max="5.0"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Material Injection */}
+            <div className="control-section">
+                <h3 className="control-section-title">Material Injection</h3>
+                <div className="control-grid control-grid-2">
+                    <div className="control-input-group">
+                        <label>Oxygen Flow Rate (m³/min)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.oxygen_flow_rate}
+                            onChange={(e) => handleOperatingParamChange('oxygen_flow_rate', e.target.value)}
+                            step="0.1"
+                            min="0"
+                            max="5"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Carbon Injection (kg/min)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.carbon_injection_rate}
+                            onChange={(e) => handleOperatingParamChange('carbon_injection_rate', e.target.value)}
+                            step="0.01"
+                            min="0"
+                            max="1"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Lime Addition (kg/min)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.lime_addition_rate}
+                            onChange={(e) => handleOperatingParamChange('lime_addition_rate', e.target.value)}
+                            step="0.01"
+                            min="0"
+                            max="1"
+                        />
+                    </div>
+                    <div className="control-input-group">
+                        <label>Dolomite Addition (kg/min)</label>
+                        <input
+                            type="number"
+                            value={operatingParams.dolomite_addition_rate}
+                            onChange={(e) => handleOperatingParamChange('dolomite_addition_rate', e.target.value)}
+                            step="0.01"
+                            min="0"
+                            max="1"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Current Parameters Display */}
+            <div className="parameter-display">
+                <div className="parameter-display-title">Current Parameters</div>
+                <div className="parameter-grid">
+                    <div className="parameter-item">
+                        <div className="parameter-value">{getCurrentPower().toFixed(1)}</div>
+                        <div className="parameter-unit">MW</div>
+                    </div>
+                    <div className="parameter-item">
+                        <div className="parameter-value">{getCurrentEfficiency().toFixed(1)}</div>
+                        <div className="parameter-unit">%</div>
+                    </div>
+                    <div className="parameter-item">
+                        <div className="parameter-value">{operatingParams.arc_voltage}</div>
+                        <div className="parameter-unit">V</div>
+                    </div>
+                    <div className="parameter-item">
+                        <div className="parameter-value">{operatingParams.arc_current}</div>
+                        <div className="parameter-unit">kA</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Material Addition */}
+            <div className="material-controls">
+                <h3 className="material-controls-title">Add Material</h3>
+                <div className="material-input-row">
+                    <input
+                        type="text"
+                        placeholder="Material name (e.g., Fe, C, Si)"
+                        value={materialInput.material_name}
+                        onChange={(e) => handleMaterialInputChange('material_name', e.target.value)}
+                    />
+                    <input
+                        type="number"
+                        placeholder="Amount (kg)"
+                        value={materialInput.amount}
+                        onChange={(e) => handleMaterialInputChange('amount', e.target.value)}
+                        min="0"
+                        step="0.1"
+                    />
+                    <select
+                        value={materialInput.zone}
+                        onChange={(e) => handleMaterialInputChange('zone', e.target.value)}
+                    >
+                        <option value="liquid_metal">Liquid Metal</option>
+                        <option value="slag">Slag</option>
+                        <option value="refractory">Refractory</option>
+                    </select>
+                    <button 
+                        className="add-material-button"
+                        onClick={handleAddMaterial}
+                        disabled={!materialInput.material_name || materialInput.amount <= 0}
+                    >
+                        Add
+                    </button>
+                </div>
+            </div>
+
+            {/* Control Buttons */}
+            <div className="control-buttons">
+                {!isRunning ? (
+                    <button 
+                        className="control-button primary"
+                        onClick={handleStartSimulation}
+                    >
+                        Start Simulation
+                    </button>
+                ) : (
+                    <button 
+                        className="control-button danger"
+                        onClick={handleStopSimulation}
+                    >
+                        Stop Simulation
+                    </button>
+                )}
+                
+                <button 
+                    className="control-button secondary"
+                    onClick={handleUpdateParameters}
+                    disabled={!isRunning}
+                >
+                    Update Parameters
+                </button>
+            </div>
         </div>
     );
 };

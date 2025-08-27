@@ -1,250 +1,281 @@
-import React, { useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import React, { useState, useMemo } from 'react';
 import './ChartsPanel.css';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell
+} from 'recharts';
 
-const ChartsPanel = ({ simulationData, simulationHistory, isRunning }) => {
+const ChartsPanel = ({ simulationData, simulationHistory }) => {
+    const [selectedChart, setSelectedChart] = useState('temperature');
+    const [timeRange, setTimeRange] = useState('all');
 
-    // Process simulation history for charts
+    // Process data for charts
     const chartData = useMemo(() => {
         if (!simulationHistory || simulationHistory.length === 0) {
             return [];
         }
 
-        return simulationHistory.map((data, index) => ({
-            time: data.simulation_time || index,
-            metalTemp: Math.round(data.zone_temperatures?.liquid_metal || 0),
-            slagTemp: Math.round(data.zone_temperatures?.slag || 0),
-            refractoryTemp: Math.round(data.zone_temperatures?.refractory || 0),
-            power: Math.round(data.current_power || 0),
-            carbon: data.zone_temperatures?.liquid_metal > 1200 ? (data.zone_temperatures?.liquid_metal - 1200) / 100 : 0,
-            silicon: data.zone_temperatures?.liquid_metal > 1400 ? (data.zone_temperatures?.liquid_metal - 1400) / 200 : 0
-        }));
-    }, [simulationHistory]);
+        let filteredData = [...simulationHistory];
 
-    // Current status data
-    const currentStatus = useMemo(() => {
-        if (!simulationData) return null;
+        // Apply time range filter
+        if (timeRange !== 'all') {
+            const now = Date.now();
+            const rangeMs = parseInt(timeRange) * 1000;
+            filteredData = filteredData.filter(item => 
+                (now - new Date(item.timestamp).getTime()) <= rangeMs
+            );
+        }
+
+        return filteredData.map((item, index) => ({
+            time: index,
+            timestamp: item.timestamp,
+            metalTemp: item.zone_temperatures?.liquid_metal || 0,
+            slagTemp: item.zone_temperatures?.slag || 0,
+            refractoryTemp: item.zone_temperatures?.refractory || 0,
+            power: item.current_power || 0,
+            efficiency: item.energy_efficiency || 0,
+            metalMass: item.zone_masses?.liquid_metal || 0,
+            slagMass: item.zone_masses?.slag || 0,
+            arcLength: item.arc_length || 0,
+            electrodePosition: item.electrode_position || 0
+        }));
+    }, [simulationHistory, timeRange]);
+
+    // Calculate summary metrics
+    const summaryMetrics = useMemo(() => {
+        if (chartData.length === 0) return {};
+
+        const latest = chartData[chartData.length - 1];
+        const avgTemp = chartData.reduce((sum, item) => sum + item.metalTemp, 0) / chartData.length;
+        const maxPower = Math.max(...chartData.map(item => item.power));
+        const avgEfficiency = chartData.reduce((sum, item) => sum + item.efficiency, 0) / chartData.length;
 
         return {
-            metalTemp: Math.round(simulationData.zone_temperatures?.liquid_metal || 0),
-            slagTemp: Math.round(simulationData.zone_temperatures?.slag || 0),
-            power: Math.round(simulationData.current_power || 0),
-            simulationTime: Math.round(simulationData.simulation_time || 0)
+            currentTemp: latest.metalTemp,
+            avgTemp: avgTemp,
+            currentPower: latest.power,
+            maxPower: maxPower,
+            currentEfficiency: latest.efficiency,
+            avgEfficiency: avgEfficiency,
+            totalMass: latest.metalMass + latest.slagMass
         };
-    }, [simulationData]);
+    }, [chartData]);
 
-    if (chartData.length === 0) {
-        return (
-            <div className="charts-panel">
-                <h3>📊 Simulation Charts</h3>
-                <div className="no-data-message">
-                    <p>No simulation data available yet.</p>
-                    <p>Start a simulation to see real-time charts and analytics.</p>
+    // Chart configurations
+    const chartConfigs = {
+        temperature: {
+            title: 'Temperature Trends',
+            dataKey: 'metalTemp',
+            color: '#e53e3e',
+            yAxisLabel: 'Temperature (°C)',
+            data: chartData.map(item => ({
+                time: item.time,
+                'Liquid Metal': item.metalTemp,
+                'Slag': item.slagTemp,
+                'Refractory': item.refractoryTemp
+            }))
+        },
+        power: {
+            title: 'Power Consumption',
+            dataKey: 'power',
+            color: '#3182ce',
+            yAxisLabel: 'Power (kW)',
+            data: chartData.map(item => ({
+                time: item.time,
+                'Arc Power': item.power
+            }))
+        },
+        efficiency: {
+            title: 'Energy Efficiency',
+            dataKey: 'efficiency',
+            color: '#38a169',
+            yAxisLabel: 'Efficiency (%)',
+            data: chartData.map(item => ({
+                time: item.time,
+                'Efficiency': item.efficiency
+            }))
+        },
+        mass: {
+            title: 'Mass Distribution',
+            dataKey: 'metalMass',
+            color: '#d69e2e',
+            yAxisLabel: 'Mass (tons)',
+            data: chartData.map(item => ({
+                time: item.time,
+                'Liquid Metal': item.metalMass,
+                'Slag': item.slagMass
+            }))
+        }
+    };
+
+    const currentConfig = chartConfigs[selectedChart];
+
+    // Render chart based on selection
+    const renderChart = () => {
+        if (chartData.length === 0) {
+            return (
+                <div className="chart-no-data">
+                    No simulation data available. Start a simulation to see real-time charts.
                 </div>
-            </div>
+            );
+        }
+
+        const dataKeys = Object.keys(currentConfig.data[0]).filter(key => key !== 'time');
+
+        return (
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={currentConfig.data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis 
+                        dataKey="time" 
+                        stroke="#718096"
+                        fontSize={12}
+                    />
+                    <YAxis 
+                        stroke="#718096"
+                        fontSize={12}
+                        label={{ 
+                            value: currentConfig.yAxisLabel, 
+                            angle: -90, 
+                            position: 'insideLeft',
+                            style: { textAnchor: 'middle', fill: '#718096' }
+                        }}
+                    />
+                    <Tooltip 
+                        contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }}
+                    />
+                    <Legend />
+                    {dataKeys.map((key, index) => (
+                        <Line
+                            key={key}
+                            type="monotone"
+                            dataKey={key}
+                            stroke={getChartColor(index)}
+                            strokeWidth={2}
+                            dot={{ fill: getChartColor(index), strokeWidth: 2, r: 3 }}
+                            activeDot={{ r: 6, stroke: getChartColor(index), strokeWidth: 2 }}
+                        />
+                    ))}
+                </LineChart>
+            </ResponsiveContainer>
         );
-    }
+    };
+
+    const getChartColor = (index) => {
+        const colors = ['#e53e3e', '#3182ce', '#38a169', '#d69e2e', '#805ad5', '#dd6b20'];
+        return colors[index % colors.length];
+    };
 
     return (
         <div className="charts-panel">
-            <h3>📊 Simulation Charts</h3>
+            <h2 className="charts-panel-title">Real-time Data Analytics</h2>
 
-            {/* Current Status Cards */}
-            {currentStatus && (
-                <div className="status-cards">
-                    <div className="status-card">
-                        <div className="card-icon">🔥</div>
-                        <div className="card-content">
-                            <div className="card-value">{currentStatus.metalTemp}°C</div>
-                            <div className="card-label">Metal Temperature</div>
-                        </div>
-                    </div>
-
-                    <div className="status-card">
-                        <div className="card-icon">🌋</div>
-                        <div className="card-content">
-                            <div className="card-value">{currentStatus.slagTemp}°C</div>
-                            <div className="card-label">Slag Temperature</div>
-                        </div>
-                    </div>
-
-                    <div className="status-card">
-                        <div className="card-icon">⚡</div>
-                        <div className="card-content">
-                            <div className="card-value">{currentStatus.power} kW</div>
-                            <div className="card-label">Current Power</div>
-                        </div>
-                    </div>
-
-                    <div className="status-card">
-                        <div className="card-icon">⏱️</div>
-                        <div className="card-content">
-                            <div className="card-value">{currentStatus.simulationTime}s</div>
-                            <div className="card-label">Simulation Time</div>
-                        </div>
-                    </div>
+            {/* Summary Metrics */}
+            <div className="metrics-overview">
+                <div className="metric-card">
+                    <div className="metric-value">{summaryMetrics.currentTemp?.toFixed(0) || '0'}</div>
+                    <div className="metric-label">Current Temp (°C)</div>
                 </div>
-            )}
-
-            {/* Temperature Chart */}
-            <div className="chart-container">
-                <h4>Temperature Evolution</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                            dataKey="time"
-                            label={{ value: 'Time (s)', position: 'insideBottom', offset: -10 }}
-                        />
-                        <YAxis
-                            label={{ value: 'Temperature (°C)', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip
-                            formatter={(value, name) => [value, name]}
-                            labelFormatter={(label) => `Time: ${label}s`}
-                        />
-                        <Legend />
-                        <Line
-                            type="monotone"
-                            dataKey="metalTemp"
-                            stroke="#ff4444"
-                            strokeWidth={2}
-                            name="Metal Temperature"
-                            dot={false}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="slagTemp"
-                            stroke="#44ff44"
-                            strokeWidth={2}
-                            name="Slag Temperature"
-                            dot={false}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="refractoryTemp"
-                            stroke="#4444ff"
-                            strokeWidth={2}
-                            name="Refractory Temperature"
-                            dot={false}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                <div className="metric-card">
+                    <div className="metric-value">{summaryMetrics.currentPower?.toFixed(0) || '0'}</div>
+                    <div className="metric-label">Current Power (kW)</div>
+                </div>
+                <div className="metric-card">
+                    <div className="metric-value">{summaryMetrics.currentEfficiency?.toFixed(1) || '0'}</div>
+                    <div className="metric-label">Efficiency (%)</div>
+                </div>
+                <div className="metric-card">
+                    <div className="metric-value">{summaryMetrics.totalMass?.toFixed(1) || '0'}</div>
+                    <div className="metric-label">Total Mass (tons)</div>
+                </div>
             </div>
 
-            {/* Power Chart */}
-            <div className="chart-container">
-                <h4>Power Consumption</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                            dataKey="time"
-                            label={{ value: 'Time (s)', position: 'insideBottom', offset: -10 }}
-                        />
-                        <YAxis
-                            label={{ value: 'Power (kW)', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip
-                            formatter={(value, name) => [value, name]}
-                            labelFormatter={(label) => `Time: ${label}s`}
-                        />
-                        <Legend />
-                        <Area
-                            type="monotone"
-                            dataKey="power"
-                            stroke="#ff8800"
-                            fill="#ff8800"
-                            fillOpacity={0.3}
-                            name="Arc Power"
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+            {/* Chart Controls */}
+            <div className="chart-controls">
+                <button
+                    className={`chart-control-button ${selectedChart === 'temperature' ? 'active' : ''}`}
+                    onClick={() => setSelectedChart('temperature')}
+                >
+                    Temperature
+                </button>
+                <button
+                    className={`chart-control-button ${selectedChart === 'power' ? 'active' : ''}`}
+                    onClick={() => setSelectedChart('power')}
+                >
+                    Power
+                </button>
+                <button
+                    className={`chart-control-button ${selectedChart === 'efficiency' ? 'active' : ''}`}
+                    onClick={() => setSelectedChart('efficiency')}
+                >
+                    Efficiency
+                </button>
+                <button
+                    className={`chart-control-button ${selectedChart === 'mass' ? 'active' : ''}`}
+                    onClick={() => setSelectedChart('mass')}
+                >
+                    Mass
+                </button>
             </div>
 
-            {/* Chemical Composition Chart */}
-            <div className="chart-container">
-                <h4>Chemical Reactions</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                            dataKey="time"
-                            label={{ value: 'Time (s)', position: 'insideBottom', offset: -10 }}
-                        />
-                        <YAxis
-                            label={{ value: 'Reaction Rate', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip
-                            formatter={(value, name) => [value, name]}
-                            labelFormatter={(label) => `Time: ${label}s`}
-                        />
-                        <Legend />
-                        <Line
-                            type="monotone"
-                            dataKey="carbon"
-                            stroke="#8B4513"
-                            strokeWidth={2}
-                            name="Carbon Oxidation"
-                            dot={false}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="silicon"
-                            stroke="#2E8B57"
-                            strokeWidth={2}
-                            name="Silicon Oxidation"
-                            dot={false}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+            {/* Time Range Selector */}
+            <div className="time-range-selector">
+                <label>Time Range:</label>
+                <select 
+                    value={timeRange} 
+                    onChange={(e) => setTimeRange(e.target.value)}
+                >
+                    <option value="all">All Data</option>
+                    <option value="300">Last 5 minutes</option>
+                    <option value="900">Last 15 minutes</option>
+                    <option value="1800">Last 30 minutes</option>
+                    <option value="3600">Last hour</option>
+                </select>
             </div>
 
-            {/* Performance Metrics */}
-            <div className="metrics-section">
-                <h4>Performance Metrics</h4>
-                <div className="metrics-grid">
-                    <div className="metric-item">
-                        <span className="metric-label">Max Temperature:</span>
-                        <span className="metric-value">
-                            {Math.max(...chartData.map(d => d.metalTemp))}°C
-                        </span>
-                    </div>
+            {/* Chart Container */}
+            <div className="chart-container">
+                <h3 className="chart-title">{currentConfig?.title}</h3>
+                <div className="chart-wrapper">
+                    {renderChart()}
+                </div>
+            </div>
 
-                    <div className="metric-item">
-                        <span className="metric-label">Min Temperature:</span>
-                        <span className="metric-value">
-                            {Math.min(...chartData.map(d => d.metalTemp))}°C
-                        </span>
-                    </div>
-
-                    <div className="metric-item">
-                        <span className="metric-label">Peak Power:</span>
-                        <span className="metric-value">
-                            {Math.max(...chartData.map(d => d.power))} kW
-                        </span>
-                    </div>
-
-                    <div className="metric-item">
-                        <span className="metric-label">Total Data Points:</span>
-                        <span className="metric-value">
-                            {chartData.length}
-                        </span>
-                    </div>
-
-                    <div className="metric-item">
-                        <span className="metric-label">Temperature Range:</span>
-                        <span className="metric-value">
-                            {Math.max(...chartData.map(d => d.metalTemp)) - Math.min(...chartData.map(d => d.metalTemp))}°C
-                        </span>
-                    </div>
-
-                    <div className="metric-item">
-                        <span className="metric-label">Simulation Duration:</span>
-                        <span className="metric-value">
-                            {Math.max(...chartData.map(d => d.time))}s
-                        </span>
-                    </div>
+            {/* Chart Legend */}
+            <div className="chart-legend">
+                <div className="legend-item">
+                    <div className="legend-color temperature"></div>
+                    <span>Temperature</span>
+                </div>
+                <div className="legend-item">
+                    <div className="legend-color power"></div>
+                    <span>Power</span>
+                </div>
+                <div className="legend-item">
+                    <div className="legend-color mass"></div>
+                    <span>Mass</span>
+                </div>
+                <div className="legend-item">
+                    <div className="legend-color efficiency"></div>
+                    <span>Efficiency</span>
                 </div>
             </div>
         </div>

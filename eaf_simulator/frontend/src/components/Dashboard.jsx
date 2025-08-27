@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import './Dashboard.css';
 import EAFVisualizer from './EAFVisualizer';
 import ControlPanel from './ControlPanel';
 import ChartsPanel from './ChartsPanel';
-import './Dashboard.css';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const Dashboard = () => {
-    const [isRunning, setIsRunning] = useState(false);
     const [simulationData, setSimulationData] = useState(null);
-    const [websocket, setWebsocket] = useState(null);
     const [simulationHistory, setSimulationHistory] = useState([]);
+    const [isRunning, setIsRunning] = useState(false);
+    const [websocket, setWebsocket] = useState(null);
     const [error, setError] = useState(null);
-
-    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -156,12 +156,7 @@ const Dashboard = () => {
             }
 
             const result = await response.json();
-
-            if (result.status === 'success') {
-                console.log('Parameters updated:', result);
-            } else {
-                throw new Error(result.message || 'Failed to update parameters');
-            }
+            console.log('Parameters updated:', result);
         } catch (err) {
             console.error('Failed to update parameters:', err);
             setError(err.message);
@@ -184,83 +179,65 @@ const Dashboard = () => {
             }
 
             const result = await response.json();
-
-            if (result.status === 'success') {
-                console.log('Material added:', result);
-            } else {
-                throw new Error(result.message || 'Failed to add material');
-            }
+            console.log('Material added:', result);
         } catch (err) {
             console.error('Failed to add material:', err);
             setError(err.message);
         }
     }, [API_BASE_URL]);
 
-    // Get simulation status
-    const getSimulationStatus = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/simulation/status`);
-
-            if (response.ok) {
-                const status = await response.json();
-                setIsRunning(status.is_running);
-            }
-        } catch (err) {
-            console.error('Failed to get simulation status:', err);
+    // Get connection status
+    const getConnectionStatus = () => {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            return 'connected';
+        } else if (websocket && websocket.readyState === WebSocket.CONNECTING) {
+            return 'connecting';
+        } else {
+            return 'disconnected';
         }
-    }, [API_BASE_URL]);
-
-    // Check status periodically
-    useEffect(() => {
-        getSimulationStatus();
-
-        const interval = setInterval(getSimulationStatus, 5000);
-        return () => clearInterval(interval);
-    }, [getSimulationStatus]);
-
-    // Error display
-    const ErrorDisplay = () => {
-        if (!error) return null;
-
-        return (
-            <div className="error-banner">
-                <span className="error-message">{error}</span>
-                <button
-                    className="error-close"
-                    onClick={() => setError(null)}
-                >
-                    ×
-                </button>
-            </div>
-        );
     };
+
+    const connectionStatus = getConnectionStatus();
 
     return (
         <div className="dashboard">
-            <ErrorDisplay />
-
             <div className="dashboard-header">
-                <h1>Electric Arc Furnace Simulator</h1>
-                <div className="header-info">
-                    <span className="api-status">
-                        API: {websocket ? 'Connected' : 'Disconnected'}
-                    </span>
-                    <span className="simulation-status">
-                        Simulation: {isRunning ? 'Running' : 'Stopped'}
-                    </span>
+                <h1 className="dashboard-title">EAF Control Center</h1>
+                <p className="dashboard-subtitle">Monitor and control your electric arc furnace in real-time</p>
+                
+                <div className="status-bar">
+                    <div className="status-item">
+                        <span className="websocket-indicator connected"></span>
+                        <span className="status-label">WebSocket: {connectionStatus}</span>
+                    </div>
+                    <div className="status-item">
+                        <span className="status-indicator running"></span>
+                        <span className="status-label">Simulation: {isRunning ? 'Running' : 'Stopped'}</span>
+                    </div>
+                    <div className="status-item">
+                        <span className="status-label">Data Points: {simulationHistory.length}</span>
+                    </div>
                 </div>
             </div>
 
             <div className="dashboard-content">
-                <div className="main-section">
-                    <div className="visualization-container">
-                        <EAFVisualizer
+                {error && (
+                    <div className="error-message">
+                        <strong>Error:</strong> {error}
+                    </div>
+                )}
+
+                <div className="dashboard-grid dashboard-grid-2">
+                    <div className="dashboard-card">
+                        <h2 className="dashboard-card-title">3D Visualization</h2>
+                        <EAFVisualizer 
                             simulationData={simulationData}
                             isRunning={isRunning}
                         />
                     </div>
-
-                    <div className="control-section">
+                    
+                    <div className="dashboard-card">
+                        <h2 className="dashboard-card-title">Control Panel</h2>
                         <ControlPanel
                             isRunning={isRunning}
                             onStartSimulation={handleStartSimulation}
@@ -272,20 +249,13 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="charts-section">
-                    <ChartsPanel
+                <div className="dashboard-card">
+                    <h2 className="dashboard-card-title">Data Analytics</h2>
+                    <ChartsPanel 
                         simulationData={simulationData}
                         simulationHistory={simulationHistory}
-                        isRunning={isRunning}
                     />
                 </div>
-            </div>
-
-            <div className="dashboard-footer">
-                <p>
-                    Built with itwinai framework |
-                    Real-time EAF simulation and control
-                </p>
             </div>
         </div>
     );

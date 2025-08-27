@@ -1,26 +1,23 @@
-import React, { useRef, useEffect, useState } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import React, { useEffect, useRef, useState } from 'react';
 import './EAFVisualizer.css';
+import * as THREE from 'three';
 
 const EAFVisualizer = ({ simulationData, isRunning }) => {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
-    const controlsRef = useRef(null);
-    const animationIdRef = useRef(null);
-
-    const [furnaceModel, setFurnaceModel] = useState(null);
-    const [zoneObjects, setZoneObjects] = useState({});
+    const animationRef = useRef(null);
+    const [viewMode, setViewMode] = useState('3d');
+    const [showInfo, setShowInfo] = useState(true);
+    const [showLegend, setShowLegend] = useState(true);
 
     useEffect(() => {
         if (!mountRef.current) return;
 
         // Scene setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a1a);
-        scene.fog = new THREE.Fog(0x1a1a1a, 10, 100);
+        scene.background = new THREE.Color(0xf7fafc);
+        sceneRef.current = scene;
 
         // Camera setup
         const camera = new THREE.PerspectiveCamera(
@@ -30,29 +27,18 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
             1000
         );
         camera.position.set(15, 10, 15);
+        camera.lookAt(0, 0, 0);
 
         // Renderer setup
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
-
+        rendererRef.current = renderer;
         mountRef.current.appendChild(renderer.domElement);
 
-        // Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.minDistance = 5;
-        controls.maxDistance = 50;
-        controls.maxPolarAngle = Math.PI / 2;
-
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -60,69 +46,42 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
-        directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 50;
-        directionalLight.shadow.camera.left = -20;
-        directionalLight.shadow.camera.right = 20;
-        directionalLight.shadow.camera.top = 20;
-        directionalLight.shadow.camera.bottom = -20;
         scene.add(directionalLight);
 
-        // Point light for arc effect
-        const arcLight = new THREE.PointLight(0xff4400, 2, 10);
-        arcLight.position.set(0, 8, 0);
-        arcLight.castShadow = true;
-        scene.add(arcLight);
-
-        // Create furnace structure
-        createFurnaceStructure(scene);
-
-        // Store references
-        sceneRef.current = scene;
-        rendererRef.current = renderer;
-        controlsRef.current = controls;
+        // Create EAF components
+        createEAFComponents(scene);
 
         // Animation loop
         const animate = () => {
-            animationIdRef.current = requestAnimationFrame(animate);
-
-            // Update controls
-            controls.update();
-
-            // Update arc light intensity based on simulation
-            if (isRunning && simulationData) {
-                const power = simulationData.current_power || 0;
-                const normalizedPower = Math.min(power / 50000, 1); // Normalize to 0-1
-                arcLight.intensity = 2 + normalizedPower * 3;
-                arcLight.color.setHex(0xff4400 + Math.floor(normalizedPower * 0x00ff00));
-            }
-
-            // Render
+            animationRef.current = requestAnimationFrame(animate);
+            
+            // Rotate the entire furnace slowly
+            scene.rotation.y += 0.005;
+            
+            // Update arc animation
+            updateArcAnimation(scene, simulationData, isRunning);
+            
             renderer.render(scene, camera);
         };
-
         animate();
 
-        // Handle window resize
+        // Handle resize
         const handleResize = () => {
             if (mountRef.current && renderer) {
                 const width = mountRef.current.clientWidth;
                 const height = mountRef.current.clientHeight;
-
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
                 renderer.setSize(width, height);
             }
         };
-
         window.addEventListener('resize', handleResize);
 
-        // Cleanup
         return () => {
-            window.removeEventListener('resize', handleResize);
-            if (animationIdRef.current) {
-                cancelAnimationFrame(animationIdRef.current);
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
             }
+            window.removeEventListener('resize', handleResize);
             if (mountRef.current && renderer.domElement) {
                 mountRef.current.removeChild(renderer.domElement);
             }
@@ -130,186 +89,284 @@ const EAFVisualizer = ({ simulationData, isRunning }) => {
         };
     }, []);
 
-    // Update visualization when simulation data changes
-    useEffect(() => {
-        if (simulationData && sceneRef.current) {
-            updateVisualization(simulationData);
-        }
-    }, [simulationData]);
+    const createEAFComponents = (scene) => {
+        // Clear existing components
+        scene.children = scene.children.filter(child => 
+            child.type === 'AmbientLight' || child.type === 'DirectionalLight'
+        );
 
-    const createFurnaceStructure = (scene) => {
-        // Furnace body (cylinder)
-        const furnaceGeometry = new THREE.CylinderGeometry(8, 8, 12, 32);
-        const furnaceMaterial = new THREE.MeshPhongMaterial({
-            color: 0x444444,
+        // Furnace shell (refractory lining)
+        const shellGeometry = new THREE.CylinderGeometry(8, 8, 12, 32);
+        const shellMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x8B4513,
             transparent: true,
-            opacity: 0.8,
-            side: THREE.DoubleSide
+            opacity: 0.8
         });
-        const furnace = new THREE.Mesh(furnaceGeometry, furnaceMaterial);
-        furnace.position.y = 6;
-        furnace.castShadow = true;
-        furnace.receiveShadow = true;
-        scene.add(furnace);
+        const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+        shell.position.y = 6;
+        shell.castShadow = true;
+        shell.receiveShadow = true;
+        scene.add(shell);
 
-        // Furnace top (cone)
-        const topGeometry = new THREE.ConeGeometry(8, 4, 32);
-        const topMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-        const top = new THREE.Mesh(topGeometry, topMaterial);
-        top.position.y = 14;
-        top.castShadow = true;
-        scene.add(top);
+        // Liquid metal pool
+        const metalGeometry = new THREE.CylinderGeometry(6, 6, 2, 32);
+        const metalMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xFF4500,
+            transparent: true,
+            opacity: 0.9
+        });
+        const metal = new THREE.Mesh(metalGeometry, metalMaterial);
+        metal.position.y = 1;
+        metal.castShadow = true;
+        metal.receiveShadow = true;
+        scene.add(metal);
+
+        // Slag layer
+        const slagGeometry = new THREE.CylinderGeometry(6.5, 6.5, 1, 32);
+        const slagMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x708090,
+            transparent: true,
+            opacity: 0.7
+        });
+        const slag = new THREE.Mesh(slagGeometry, slagMaterial);
+        slag.position.y = 2.5;
+        scene.add(slag);
 
         // Electrodes (3 graphite electrodes)
         const electrodeGeometry = new THREE.CylinderGeometry(0.3, 0.3, 8, 16);
-        const electrodeMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
-
+        const electrodeMaterial = new THREE.MeshLambertMaterial({ color: 0x2F4F4F });
+        
         for (let i = 0; i < 3; i++) {
             const angle = (i * 2 * Math.PI) / 3;
-            const radius = 3;
+            const radius = 4;
             const electrode = new THREE.Mesh(electrodeGeometry, electrodeMaterial);
             electrode.position.set(
                 radius * Math.cos(angle),
-                10,
+                8,
                 radius * Math.sin(angle)
             );
             electrode.castShadow = true;
             scene.add(electrode);
         }
 
-        // Arc visualization
-        const arcGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-        const arcMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff4400,
+        // Arc effects (will be animated)
+        const arcGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+        const arcMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00FFFF,
             transparent: true,
             opacity: 0.8
         });
-        const arc = new THREE.Mesh(arcGeometry, arcMaterial);
-        arc.position.y = 8;
-        scene.add(arc);
+        
+        for (let i = 0; i < 3; i++) {
+            const angle = (i * 2 * Math.PI) / 3;
+            const radius = 4;
+            const arc = new THREE.Mesh(arcGeometry, arcMaterial);
+            arc.position.set(
+                radius * Math.cos(angle),
+                4,
+                radius * Math.sin(angle)
+            );
+            arc.userData = { type: 'arc', index: i };
+            scene.add(arc);
+        }
 
-        // Store zone objects for updates
-        setZoneObjects({
-            furnace,
-            top,
-            arc,
-            electrodes: []
-        });
+        // Cooling water pipes
+        const pipeGeometry = new THREE.CylinderGeometry(0.2, 0.2, 12, 16);
+        const pipeMaterial = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
+        
+        for (let i = 0; i < 4; i++) {
+            const angle = (i * 2 * Math.PI) / 4;
+            const radius = 9;
+            const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+            pipe.position.set(
+                radius * Math.cos(angle),
+                6,
+                radius * Math.sin(angle)
+            );
+            pipe.rotation.z = Math.PI / 2;
+            scene.add(pipe);
+        }
+
+        // Roof with electrode holes
+        const roofGeometry = new THREE.CylinderGeometry(8.5, 8.5, 1, 32);
+        const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
+        const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+        roof.position.y = 12.5;
+        roof.castShadow = true;
+        roof.receiveShadow = true;
+        scene.add(roof);
+
+        // Taphole
+        const tapholeGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
+        const tapholeMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+        const taphole = new THREE.Mesh(tapholeGeometry, tapholeMaterial);
+        taphole.position.set(0, 1, -8);
+        taphole.rotation.x = Math.PI / 2;
+        scene.add(taphole);
+
+        // Oxygen lance
+        const lanceGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4, 16);
+        const lanceMaterial = new THREE.MeshLambertMaterial({ color: 0xC0C0C0 });
+        const lance = new THREE.Mesh(lanceGeometry, lanceMaterial);
+        lance.position.set(0, 10, 0);
+        lance.rotation.x = Math.PI / 2;
+        scene.add(lance);
+
+        // Add labels
+        addLabels(scene);
     };
 
-    const updateVisualization = (data) => {
-        if (!sceneRef.current || !zoneObjects.furnace) return;
-
-        // Update temperatures with color changes
-        const metalTemp = data.zone_temperatures?.liquid_metal || 298;
-        const slagTemp = data.zone_temperatures?.slag || 298;
-
-        // Temperature-based color mapping
-        const getTemperatureColor = (temp) => {
-            if (temp < 500) return 0x0000ff; // Blue (cold)
-            if (temp < 1000) return 0x00ffff; // Cyan
-            if (temp < 1500) return 0x00ff00; // Green
-            if (temp < 2000) return 0xffff00; // Yellow
-            if (temp < 2500) return 0xff8000; // Orange
-            return 0xff0000; // Red (hot)
-        };
-
-        // Update furnace color based on metal temperature
-        const furnaceMaterial = zoneObjects.furnace.material;
-        furnaceMaterial.color.setHex(getTemperatureColor(metalTemp));
-
-        // Update arc intensity based on power
-        if (zoneObjects.arc) {
-            const power = data.current_power || 0;
-            const normalizedPower = Math.min(power / 50000, 1);
-            zoneObjects.arc.material.opacity = 0.3 + normalizedPower * 0.7;
-            zoneObjects.arc.material.color.setHex(getTemperatureColor(2000 + normalizedPower * 1000));
-        }
-
-        // Add particle effects for high temperatures
-        if (metalTemp > 1500 && !sceneRef.current.particles) {
-            createParticleSystem(sceneRef.current);
-        }
+    const addLabels = (scene) => {
+        // This would add text labels to the visualization
+        // For now, we'll use simple colored indicators
     };
 
-    const createParticleSystem = (scene) => {
-        const particleCount = 100;
-        const particles = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
+    const updateArcAnimation = (scene, simulationData, isRunning) => {
+        if (!isRunning || !simulationData) return;
 
-        for (let i = 0; i < particleCount; i++) {
-            const i3 = i * 3;
-            positions[i3] = (Math.random() - 0.5) * 16; // x
-            positions[i3 + 1] = Math.random() * 8 + 4; // y
-            positions[i3 + 2] = (Math.random() - 0.5) * 16; // z
-
-            colors[i3] = 1; // r
-            colors[i3 + 1] = Math.random() * 0.5; // g
-            colors[i3 + 2] = 0; // b
-        }
-
-        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const particleMaterial = new THREE.PointsMaterial({
-            size: 0.1,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.6
-        });
-
-        const particleSystem = new THREE.Points(particles, particleMaterial);
-        scene.add(particleSystem);
-        scene.particles = particleSystem;
-
-        // Animate particles
-        const animateParticles = () => {
-            if (particleSystem) {
-                const positions = particleSystem.geometry.attributes.position.array;
-                for (let i = 0; i < positions.length; i += 3) {
-                    positions[i + 1] += 0.01; // Move up
-                    if (positions[i + 1] > 12) {
-                        positions[i + 1] = 4; // Reset to bottom
-                    }
-                }
-                particleSystem.geometry.attributes.position.needsUpdate = true;
+        // Find arc meshes and animate them
+        scene.children.forEach(child => {
+            if (child.userData?.type === 'arc') {
+                // Pulse the arc
+                const time = Date.now() * 0.005;
+                const scale = 1 + 0.3 * Math.sin(time + child.userData.index);
+                child.scale.set(scale, scale, scale);
+                
+                // Change color based on power
+                const power = simulationData.current_power || 0;
+                const intensity = Math.min(1, power / 50000); // Normalize power
+                child.material.color.setHSL(0.6, 1, 0.5 + intensity * 0.5);
             }
-            requestAnimationFrame(animateParticles);
-        };
-        animateParticles();
+        });
+
+        // Update metal temperature color
+        scene.children.forEach(child => {
+            if (child.geometry && child.geometry.type === 'CylinderGeometry' && 
+                child.material.color.getHex() === 0xFF4500) {
+                const temp = simulationData.zone_temperatures?.liquid_metal || 0;
+                const normalizedTemp = Math.min(1, temp / 2000);
+                const hue = 0.1 + normalizedTemp * 0.1; // Red to orange to yellow
+                const saturation = 1;
+                const lightness = 0.3 + normalizedTemp * 0.4;
+                child.material.color.setHSL(hue, saturation, lightness);
+            }
+        });
     };
+
+    const getCurrentMetrics = () => {
+        if (!simulationData) return {};
+        
+        return {
+            metalTemp: simulationData.zone_temperatures?.liquid_metal || 0,
+            slagTemp: simulationData.zone_temperatures?.slag || 0,
+            power: simulationData.current_power || 0,
+            efficiency: simulationData.energy_efficiency || 0,
+            arcLength: simulationData.arc_length || 0,
+            electrodePosition: simulationData.electrode_position || 0
+        };
+    };
+
+    const metrics = getCurrentMetrics();
 
     return (
-        <div className="eaf-visualizer" ref={mountRef}>
-            <div className="visualizer-overlay">
-                <div className="temperature-display">
-                    {simulationData && (
-                        <>
-                            <div className="temp-item">
-                                <span className="temp-label">Metal:</span>
-                                <span className="temp-value">
-                                    {Math.round(simulationData.zone_temperatures?.liquid_metal || 0)}°C
-                                </span>
-                            </div>
-                            <div className="temp-item">
-                                <span className="temp-label">Slag:</span>
-                                <span className="temp-value">
-                                    {Math.round(simulationData.zone_temperatures?.slag || 0)}°C
-                                </span>
-                            </div>
-                            <div className="temp-item">
-                                <span className="temp-label">Power:</span>
-                                <span className="temp-value">
-                                    {Math.round(simulationData.current_power || 0)} kW
-                                </span>
-                            </div>
-                        </>
-                    )}
-                </div>
+        <div className="eaf-visualizer">
+            <h2 className="eaf-visualizer-title">3D EAF Visualization</h2>
+            
+            <div className="visualizer-container">
+                <div ref={mountRef} className="visualizer-canvas" />
+                
+                <div className="visualizer-overlay">
+                    {/* Status Indicator */}
+                    <div className="visualizer-status">
+                        <div className={`visualizer-status-indicator ${isRunning ? 'running' : 'stopped'}`}></div>
+                        <span className="visualizer-status-text">
+                            {isRunning ? 'SIMULATION RUNNING' : 'SIMULATION STOPPED'}
+                        </span>
+                    </div>
 
-                <div className="controls-info">
-                    <p>Mouse: Rotate | Scroll: Zoom | Right-click: Pan</p>
+                    {/* Info Panel */}
+                    {showInfo && (
+                        <div className="visualizer-info">
+                            <div className="visualizer-info-title">Real-time Data</div>
+                            <div className="visualizer-metric">
+                                <span className="visualizer-metric-label">Metal Temp:</span>
+                                <span className="visualizer-metric-value">{metrics.metalTemp.toFixed(0)}°C</span>
+                            </div>
+                            <div className="visualizer-metric">
+                                <span className="visualizer-metric-label">Slag Temp:</span>
+                                <span className="visualizer-metric-value">{metrics.slagTemp.toFixed(0)}°C</span>
+                            </div>
+                            <div className="visualizer-metric">
+                                <span className="visualizer-metric-label">Power:</span>
+                                <span className="visualizer-metric-value">{metrics.power.toFixed(0)} kW</span>
+                            </div>
+                            <div className="visualizer-metric">
+                                <span className="visualizer-metric-label">Efficiency:</span>
+                                <span className="visualizer-metric-value">{metrics.efficiency.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Legend */}
+                    {showLegend && (
+                        <div className="visualizer-legend">
+                            <div className="visualizer-legend-title">Components</div>
+                            <div className="visualizer-legend-item">
+                                <div className="visualizer-legend-color metal"></div>
+                                <span>Liquid Metal</span>
+                            </div>
+                            <div className="visualizer-legend-item">
+                                <div className="visualizer-legend-color slag"></div>
+                                <span>Slag Layer</span>
+                            </div>
+                            <div className="visualizer-legend-item">
+                                <div className="visualizer-legend-color refractory"></div>
+                                <span>Refractory</span>
+                            </div>
+                            <div className="visualizer-legend-item">
+                                <div className="visualizer-legend-color arc"></div>
+                                <span>Electric Arc</span>
+                            </div>
+                            <div className="visualizer-legend-item">
+                                <div className="visualizer-legend-color electrode"></div>
+                                <span>Electrodes</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Controls */}
+                    <div className="visualizer-controls">
+                        <button
+                            className={`visualizer-control-button ${viewMode === '3d' ? 'active' : ''}`}
+                            onClick={() => setViewMode('3d')}
+                        >
+                            3D View
+                        </button>
+                        <button
+                            className={`visualizer-control-button ${viewMode === 'top' ? 'active' : ''}`}
+                            onClick={() => setViewMode('top')}
+                        >
+                            Top View
+                        </button>
+                        <button
+                            className={`visualizer-control-button ${viewMode === 'side' ? 'active' : ''}`}
+                            onClick={() => setViewMode('side')}
+                        >
+                            Side View
+                        </button>
+                        <button
+                            className="visualizer-control-button"
+                            onClick={() => setShowInfo(!showInfo)}
+                        >
+                            {showInfo ? 'Hide Info' : 'Show Info'}
+                        </button>
+                        <button
+                            className="visualizer-control-button"
+                            onClick={() => setShowLegend(!showLegend)}
+                        >
+                            {showLegend ? 'Hide Legend' : 'Show Legend'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
